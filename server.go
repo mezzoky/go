@@ -8,20 +8,23 @@ import (
 var print = fmt.Println
 var scan = fmt.Scanln
 
+var connMap map[string] *net.TCPConn
 
 func main() {
-    var tcpAddr *net.TCPAddr
-    tcpAddr, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:9999")
+    var tcpAddr, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:9999")
     var tcpListener, _ = net.ListenTCP("tcp", tcpAddr)
-
+    connMap = make(map[string] *net.TCPConn)
     defer tcpListener.Close()
 
     for {
         var tcpConn, err = tcpListener.AcceptTCP()
         if err != nil {
+            print("continue", err)
             continue
         }
-        print("A client connected: ", tcpConn.RemoteAddr().String())
+        var clientIP = tcpConn.RemoteAddr().String()
+        print(clientIP, "connected")
+        connMap[clientIP] = tcpConn
         go tcpPipe(tcpConn)
     }
 
@@ -30,7 +33,7 @@ func main() {
 func tcpPipe(conn *net.TCPConn) {
     var ip string = conn.RemoteAddr().String()
     defer func() {
-        print("disconnected: ", ip)
+        print(ip, "disconnected")
         conn.Close()
     }()
 
@@ -42,9 +45,17 @@ func tcpPipe(conn *net.TCPConn) {
             return
         }
 
-        print(string(msg))
+        print(ip, ":", msg)
         msgstr := time.Now().String() + "\n"
-        var b []byte = []byte(msgstr)
+        msgstr = ip + ":" + msg
+        broadcast(msgstr)
+    }
+}
+
+
+func broadcast(msg string) {
+    var b = []byte(msg)
+    for _, conn := range connMap {
         conn.Write(b)
     }
 }

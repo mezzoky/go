@@ -3,42 +3,39 @@ import (
     "fmt"
     "bufio"
     "net"
-    "time"
 )
 var print = fmt.Println
 var scan = fmt.Scanln
 
-
 func main() {
-    var tcpAddr *net.TCPAddr
-    tcpAddr, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:9999")
+    var tcpAddr, _ = net.ResolveTCPAddr("tcp", "127.0.0.1:9999")
     
     var conn, _ = net.DialTCP("tcp", nil, tcpAddr)
 
     defer conn.Close()
 
-    print("connected!")
+    print("connected to", conn.RemoteAddr().String())
 
-    var quitSemaphone = make(chan bool)
-    go onMessageReceived(conn, quitSemaphone)
+    go onMessageReceived(conn)
 
-    var b = []byte("time\n")
-    conn.Write(b)
-
-    <- quitSemaphone
+    for {
+        var msg string
+        scan(&msg)
+        if msg == "quit" {
+            break
+        }
+        b := []byte(msg + "\n")
+        conn.Write(b)
+    }
 }
 
-func onMessageReceived(conn *net.TCPConn, quitSemaphone chan bool) {
+func onMessageReceived(conn *net.TCPConn) {
     var reader = bufio.NewReader(conn)
     for {
         var msg, err = reader.ReadString('\n')
-        print(msg)
+        print("from server:", msg)
         if err != nil {
-            quitSemaphone <- true
             break
         }
-        time.Sleep(time.Second)
-        var b []byte = []byte(msg)
-        conn.Write(b)
     }
 }
